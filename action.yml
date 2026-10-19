@@ -28,7 +28,7 @@ inputs:
         required: false
         default: "intl, mbstring"
     database-url:
-        description: "DATABASE_URL for the functional tests"
+        description: "DATABASE_URL for the functional tests and code coverage"
         required: false
         default: "mysql://root:root@127.0.0.1/sylius?serverVersion=8.0"
     codecov-token:
@@ -90,7 +90,9 @@ runs:
             with:
                 php-version: "${{ inputs.php-version }}"
                 dependencies: "${{ inputs.dependencies }}"
+                symfony: "${{ inputs.symfony }}"
                 extensions: "${{ inputs.extensions }}"
+                database-url: "${{ inputs.database-url }}"
                 codecov-token: "${{ inputs.codecov-token }}"
 
         -   if: "github.event_name == 'pull_request'"

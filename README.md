@@ -25,7 +25,7 @@ Nine actions ship in this repository:
 | `setono/sylius-plugin/unit-tests@<ref>` | `vendor/bin/phpunit` |
 | `setono/sylius-plugin/functional-tests@<ref>` | MySQL + Doctrine schema validation against `tests/Application` |
 | `setono/sylius-plugin/mutation-tests@<ref>` | Infection, with optional Stryker Dashboard reporting |
-| `setono/sylius-plugin/code-coverage@<ref>` | PHPUnit with pcov, upload to Codecov |
+| `setono/sylius-plugin/code-coverage@<ref>` | PHPUnit with pcov against the test application's database, upload to Codecov |
 | `setono/sylius-plugin/backwards-compatibility@<ref>` | Roave backward-compatibility-check against the PR base ref |
 
 Pin the floating major (`@v2`) for automatic patch updates, or pin a specific tag (`@2.1.0`) for full reproducibility. Note the asymmetry: exact tags are bare-numeric (composer convention), the floating major uses the `v` prefix (action ecosystem convention).
@@ -36,7 +36,7 @@ The actions assume your plugin follows the standard Setono Sylius plugin scaffol
 
 - A test application at `tests/Application/` with `bin/console` available
 - Config files at the repo root: `ecs.php` (Easy Coding Standard), `phpstan.neon` / `phpstan.neon.dist` (PHPStan), and `phpunit.xml` / `phpunit.xml.dist` (PHPUnit)
-- For functional tests: `tests/Application/` runs in a Symfony `test` env and uses Doctrine with a MySQL-backed connection
+- For functional tests and code coverage: `tests/Application/` runs in a Symfony `test` env and uses Doctrine with a MySQL-backed connection
 - For mutation tests: Infection is configured (typically via `infection.json5`)
 - For code coverage: PHPUnit is configured to write a clover report to `.build/logs/clover.xml`
 
@@ -216,9 +216,14 @@ jobs:
 |---|---|---|
 | `php-version` | `8.3` | PHP version to install |
 | `dependencies` | `highest` | Composer dependency versions: `lowest` or `highest` |
+| `symfony` | `""` | Symfony version constraint for Flex |
 | `extensions` | `intl, mbstring` | PHP extensions to install |
+| `database-url` | `mysql://root:root@127.0.0.1/sylius?serverVersion=8.0` | Symfony `DATABASE_URL` for the test application |
+| `node-version` | `20` | Node.js version for the `yarn install` / `yarn build` steps |
 | `codecov-token` | _(required)_ | Codecov upload token. Pass via secrets |
 | `testsuite` | `""` | PHPUnit testsuite name to run. Empty runs all suites |
+
+Sets up the test application the same way as `functional-tests` (MySQL, `yarn install` + `yarn build`, `doctrine:database:create`, `doctrine:schema:create`, `sylius:fixtures:load -n`), then runs `vendor/bin/phpunit` with pcov in the `test` environment. Database-backed functional tests therefore pass here too, and the code only they reach counts toward coverage.
 
 ```yaml
 jobs:
@@ -265,7 +270,7 @@ The root action runs all seven sub-actions sequentially in a single job. **It is
 | `dependencies` | `highest` | Composer dependency versions: `lowest` or `highest` |
 | `symfony` | `~7.4.0` | Symfony version constraint for Flex |
 | `extensions` | `intl, mbstring` | PHP extensions to install |
-| `database-url` | `mysql://root:root@127.0.0.1/sylius?serverVersion=8.0` | `DATABASE_URL` for functional tests |
+| `database-url` | `mysql://root:root@127.0.0.1/sylius?serverVersion=8.0` | `DATABASE_URL` for functional tests and code coverage |
 | `codecov-token` | `""` | Codecov upload token. Empty skips the code-coverage step entirely |
 | `stryker-dashboard-api-key` | `""` | Stryker Dashboard API key. Empty skips dashboard reporting (Infection still runs) |
 

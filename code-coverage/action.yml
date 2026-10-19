@@ -1,5 +1,5 @@
 name: "Code coverage"
-description: "Run PHPUnit with pcov coverage and upload the report to Codecov"
+description: "Run PHPUnit with pcov coverage against the test application's database and upload the report to Codecov"
 
 inputs:
     php-version:
@@ -10,10 +10,22 @@ inputs:
         description: "Composer dependency versions: lowest or highest"
         required: false
         default: "highest"
+    symfony:
+        description: "Symfony version constraint for Flex (e.g. ~7.4.0). Empty string disables the constraint."
+        required: false
+        default: ""
     extensions:
         description: "PHP extensions to install"
         required: false
         default: "intl, mbstring"
+    database-url:
+        description: "Symfony DATABASE_URL for the test application"
+        required: false
+        default: "mysql://root:root@127.0.0.1/sylius?serverVersion=8.0"
+    node-version:
+        description: "Node.js version to install for building the test application's assets"
+        required: false
+        default: "20"
     codecov-token:
         description: "Codecov upload token. Pass via secrets."
         required: true
@@ -25,6 +37,9 @@ inputs:
 runs:
     using: "composite"
     steps:
+        -   shell: "bash"
+            run: "sudo /etc/init.d/mysql start"
+
         -   uses: "actions/checkout@v6"
 
         -   uses: "shivammathur/setup-php@v2"
@@ -32,12 +47,51 @@ runs:
                 php-version: "${{ inputs.php-version }}"
                 extensions: "${{ inputs.extensions }}"
                 coverage: "pcov"
+                tools: "flex"
+
+        -   uses: "actions/setup-node@v4"
+            with:
+                node-version: "${{ inputs.node-version }}"
 
         -   uses: "ramsey/composer-install@v4"
+            env:
+                SYMFONY_REQUIRE: "${{ inputs.symfony }}"
             with:
                 dependency-versions: "${{ inputs.dependencies }}"
 
         -   shell: "bash"
+            working-directory: "tests/Application"
+            run: "yarn install"
+
+        -   shell: "bash"
+            working-directory: "tests/Application"
+            run: "yarn build"
+
+        -   shell: "bash"
+            working-directory: "tests/Application"
+            env:
+                APP_ENV: "test"
+                DATABASE_URL: "${{ inputs.database-url }}"
+            run: "bin/console doctrine:database:create"
+
+        -   shell: "bash"
+            working-directory: "tests/Application"
+            env:
+                APP_ENV: "test"
+                DATABASE_URL: "${{ inputs.database-url }}"
+            run: "bin/console doctrine:schema:create"
+
+        -   shell: "bash"
+            working-directory: "tests/Application"
+            env:
+                APP_ENV: "test"
+                DATABASE_URL: "${{ inputs.database-url }}"
+            run: "bin/console sylius:fixtures:load -n"
+
+        -   shell: "bash"
+            env:
+                APP_ENV: "test"
+                DATABASE_URL: "${{ inputs.database-url }}"
             run: "vendor/bin/phpunit --coverage-clover=.build/logs/clover.xml ${{ inputs.testsuite && format('--testsuite={0}', inputs.testsuite) || '' }}"
 
         -   uses: "codecov/codecov-action@v5"
