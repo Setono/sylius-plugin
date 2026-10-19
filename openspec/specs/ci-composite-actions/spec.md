@@ -43,7 +43,7 @@ The repository SHALL provide a root `action.yml` at the repository root. The roo
 
 ### Requirement: Coding standards sub-action runs composer validation, normalization, style, rector, and template linting
 
-The `coding-standards` sub-action SHALL run, in order: `composer validate --strict`, `composer normalize --dry-run`, `vendor/bin/ecs check`, `vendor/bin/rector process --dry-run`, `bin/console lint:yaml ../../.github ../../config ../../translations` (from `tests/Application`), and `bin/console lint:twig ../../templates` (from `tests/Application`). It SHALL accept inputs `php-version` (default the lowest supported), `dependencies` (default `highest`), and `extensions` (default `intl, mbstring`).
+The `coding-standards` sub-action SHALL run, in order: `composer validate --strict`, `composer normalize --dry-run`, `vendor/bin/ecs check`, `vendor/bin/rector process --dry-run`, `bin/console lint:yaml ../../.github ../../config ../../translations` (from `tests/Application`), and `bin/console lint:twig ../../templates` (from `tests/Application`), followed by `symfony lsp:check --format=github` when the consumer's repository root contains a `.symfony-lsp.json`. The Symfony CLI MUST be installed via the setup-php action's `tools` input. It SHALL accept inputs `php-version` (default the lowest supported), `dependencies` (default `highest`), and `extensions` (default `intl, mbstring`).
 
 #### Scenario: Default invocation against the standard plugin scaffold
 
@@ -54,6 +54,16 @@ The `coding-standards` sub-action SHALL run, in order: `composer validate --stri
 
 - **WHEN** a consumer invokes the action with `php-version: '8.4'`
 - **THEN** PHP 8.4 is installed and used for all six checks
+
+#### Scenario: Consumer opts in to Symfony LSP diagnostics
+
+- **WHEN** the consumer's repository root contains a `.symfony-lsp.json`
+- **THEN** the action runs `symfony lsp:check --format=github` after the six checks, and blocking diagnostics fail the action
+
+#### Scenario: Consumer without a symfony-lsp configuration
+
+- **WHEN** the consumer's repository root contains no `.symfony-lsp.json`
+- **THEN** the Symfony LSP step is skipped and the action's result depends on the six checks only
 
 ### Requirement: Dependency analysis sub-action runs composer-dependency-analyser against production dependencies
 
