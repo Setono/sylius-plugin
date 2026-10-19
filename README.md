@@ -19,7 +19,7 @@ Nine actions ship in this repository:
 | Action | Purpose |
 |---|---|
 | `setono/sylius-plugin@<ref>` | Root action. Runs all eight checks sequentially in one job |
-| `setono/sylius-plugin/coding-standards@<ref>` | composer validate, normalize, check-style, rector dry-run, yaml/twig lint |
+| `setono/sylius-plugin/coding-standards@<ref>` | composer validate, normalize, check-style, rector dry-run, yaml/twig lint, Symfony LSP diagnostics (opt-in) |
 | `setono/sylius-plugin/dependency-analysis@<ref>` | composer-dependency-analyser against production deps |
 | `setono/sylius-plugin/static-code-analysis@<ref>` | `vendor/bin/phpstan analyse`, with `sylius/sylius` removed first |
 | `setono/sylius-plugin/unit-tests@<ref>` | `vendor/bin/phpunit` |
@@ -59,6 +59,19 @@ jobs:
         steps:
             -   uses: "setono/sylius-plugin/coding-standards@v2"
 ```
+
+When the plugin has a `.symfony-lsp.json` at its root, the action also runs [`symfony lsp:check --format=github`](https://symfony.com/blog/introducing-symfony-lsp-check-symfony-aware-diagnostics-in-your-ci), so unknown routes, services, templates and translation keys, deprecated config keys and the like show up as annotations on pull requests. Without the file the step is skipped, because symfony-lsp can't discover the test application of the standard scaffold on its own. For that scaffold, analyze the repository root and name the test application's kernel:
+
+```json
+{
+    "version": 1,
+    "projectRoots": ["."],
+    "kernel": "Acme\\SyliusExamplePlugin\\Tests\\Application\\Kernel",
+    "translationDiagnostics": true
+}
+```
+
+Analyzing the root (rather than `tests/Application`) means the plugin's own `config/`, `templates/` and `translations/` are checked, and symfony-lsp finds the root `vendor/autoload.php` it boots the kernel with. The test application must boot in the `dev` environment with debug on, since symfony-lsp reads runtime metadata Symfony only exposes in debug mode. symfony-lsp caches to `var/symfony-lsp` under the analyzed root, so add `/var/` to the root `.gitignore`.
 
 #### `dependency-analysis`
 
