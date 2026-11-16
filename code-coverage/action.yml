@@ -33,17 +33,18 @@ inputs:
         description: "PHPUnit testsuite name to run. Empty (default) runs all suites."
         required: false
         default: ""
-    start-mysql:
-        description: "Start the MySQL server that ships with the runner image. Set it to false when the job provides MySQL itself, e.g. as a mysql service container. ubuntu-latest (Ubuntu 26.04) ships no MySQL, so jobs on it must."
-        required: false
-        default: "true"
 
 runs:
     using: "composite"
     steps:
-        -   if: "inputs.start-mysql == 'true'"
-            shell: "bash"
-            run: "sudo /etc/init.d/mysql start"
+        # Runner images don't reliably ship MySQL (ubuntu-latest is Ubuntu 26.04, which has none), so run it from the
+        # official image. Starting it first lets it initialise while PHP, Composer and Node are set up. The root action
+        # runs functional-tests and code-coverage in one job, so an already running container is reused
+        -   shell: "bash"
+            run: |
+                if [ -z "$(docker ps --quiet --filter 'name=^setono-sylius-plugin-mysql$')" ]; then
+                    docker run --detach --name setono-sylius-plugin-mysql --publish 3306:3306 --env MYSQL_ROOT_PASSWORD=root mysql:8.0
+                fi
 
         -   uses: "actions/checkout@v6"
 
@@ -71,6 +72,18 @@ runs:
         -   shell: "bash"
             working-directory: "tests/Application"
             run: "yarn build"
+
+        # Pinging over TCP skips the temporary server the image runs without networking while it initialises
+        -   shell: "bash"
+            run: |
+                for attempt in $(seq 1 60); do
+                    if docker exec setono-sylius-plugin-mysql mysqladmin ping --host=127.0.0.1 --user=root --password=root --silent 2>/dev/null; then
+                        exit 0
+                    fi
+                    sleep 2
+                done
+                docker logs setono-sylius-plugin-mysql
+                exit 1
 
         -   shell: "bash"
             working-directory: "tests/Application"
