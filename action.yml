@@ -31,6 +31,10 @@ inputs:
         description: "DATABASE_URL for the functional tests and code coverage"
         required: false
         default: "mysql://root:root@127.0.0.1/sylius?serverVersion=8.0"
+    start-mysql:
+        description: "Start the MySQL server that ships with the runner image for the functional tests and code coverage. Set it to false when the job provides MySQL itself, e.g. as a mysql service container. ubuntu-latest (Ubuntu 26.04) ships no MySQL, so jobs on it must."
+        required: false
+        default: "true"
     codecov-token:
         description: "Codecov upload token. Leave empty to skip the code-coverage step."
         required: false
@@ -77,6 +81,7 @@ runs:
                 symfony: "${{ inputs.symfony }}"
                 extensions: "${{ inputs.extensions }}"
                 database-url: "${{ inputs.database-url }}"
+                start-mysql: "${{ inputs.start-mysql }}"
 
         -   uses: "setono/sylius-plugin/mutation-tests@v2"
             with:
@@ -93,6 +98,7 @@ runs:
                 symfony: "${{ inputs.symfony }}"
                 extensions: "${{ inputs.extensions }}"
                 database-url: "${{ inputs.database-url }}"
+                start-mysql: "${{ inputs.start-mysql }}"
                 codecov-token: "${{ inputs.codecov-token }}"
 
         -   if: "github.event_name == 'pull_request'"
