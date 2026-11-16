@@ -36,39 +36,11 @@ The actions assume your plugin follows the standard Setono Sylius plugin scaffol
 
 - A test application at `tests/Application/` with `bin/console` available
 - Config files at the repo root: `ecs.php` (Easy Coding Standard), `phpstan.neon` / `phpstan.neon.dist` (PHPStan), and `phpunit.xml` / `phpunit.xml.dist` (PHPUnit)
-- For functional tests and code coverage: `tests/Application/` runs in a Symfony `test` env and uses Doctrine with a MySQL-backed connection
+- For functional tests and code coverage: `tests/Application/` runs in a Symfony `test` env and uses Doctrine with a MySQL-backed connection. The actions start MySQL 8.0 themselves from the `mysql:8.0` Docker image, as `root`/`root` on `127.0.0.1:3306` (the default `database-url`). They work on any GitHub-hosted Ubuntu runner, including `ubuntu-latest` (Ubuntu 26.04), which ships no MySQL. Don't declare your own MySQL service on port 3306 in those jobs
 - For mutation tests: Infection is configured (typically via `infection.json5`)
 - For code coverage: PHPUnit is configured to write a clover report to `.build/logs/clover.xml`
 
 If your plugin doesn't match this scaffold, pick sub-actions selectively or fork.
-
-### MySQL
-
-`functional-tests`, `code-coverage` and the root action need a MySQL server on `127.0.0.1:3306` with the user `root` and the password `root`. By default they start the one that ships with the runner image. `ubuntu-latest` has been Ubuntu 26.04 since October 2026, and that image ships no MySQL. On it, run MySQL as a service container and pass `start-mysql: false`:
-
-```yaml
-jobs:
-    functional-tests:
-        runs-on: "ubuntu-latest"
-        services:
-            mysql:
-                image: "mysql:8.0"
-                env:
-                    MYSQL_ROOT_PASSWORD: "root"
-                ports:
-                    - "3306:3306"
-                options: >-
-                    --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
-                    --health-interval=5s
-                    --health-timeout=5s
-                    --health-retries=20
-        steps:
-            -   uses: "setono/sylius-plugin/functional-tests@v2"
-                with:
-                    start-mysql: false
-```
-
-The health check makes the job wait until MySQL accepts connections. The action creates the database itself (`doctrine:database:create`).
 
 ### Sub-actions
 
@@ -168,7 +140,6 @@ jobs:
 | `symfony` | `""` | Symfony version constraint for Flex |
 | `extensions` | `intl, mbstring` | PHP extensions to install |
 | `testsuite` | `""` | PHPUnit testsuite name to run. Empty runs all suites |
-| `start-mysql` | `true` | Start the runner image's MySQL. Set it to `false` when the job runs MySQL itself, which `ubuntu-latest` requires (see [MySQL](#mysql)) |
 
 ```yaml
 jobs:
@@ -199,9 +170,8 @@ jobs:
 | `database-url` | `mysql://root:root@127.0.0.1/sylius?serverVersion=8.0` | Symfony `DATABASE_URL` for the test application |
 | `node-version` | `20` | Node.js version for the `yarn install` / `yarn build` steps |
 | `testsuite` | `""` | PHPUnit testsuite name to run after the setup. Empty skips the phpunit step entirely |
-| `start-mysql` | `true` | Start the runner image's MySQL. Set it to `false` when the job runs MySQL itself, which `ubuntu-latest` requires (see [MySQL](#mysql)) |
 
-Starts MySQL (unless `start-mysql` is `false`), installs PHP and Node, builds assets (`yarn install` + `yarn build`), then runs `lint:container`, `doctrine:database:create`, `doctrine:schema:create`, `doctrine:schema:validate -vvv`, and `sylius:fixtures:load -n` from `tests/Application`. If `testsuite` is set, finishes by running `vendor/bin/phpunit --testsuite=<value>`.
+Starts MySQL 8.0 in a Docker container, installs PHP and Node, builds assets (`yarn install` + `yarn build`), then runs `lint:container`, `doctrine:database:create`, `doctrine:schema:create`, `doctrine:schema:validate -vvv`, and `sylius:fixtures:load -n` from `tests/Application`. If `testsuite` is set, finishes by running `vendor/bin/phpunit --testsuite=<value>`.
 
 ```yaml
 jobs:
@@ -301,7 +271,6 @@ The root action runs all seven sub-actions sequentially in a single job. **It is
 | `symfony` | `~7.4.0` | Symfony version constraint for Flex |
 | `extensions` | `intl, mbstring` | PHP extensions to install |
 | `database-url` | `mysql://root:root@127.0.0.1/sylius?serverVersion=8.0` | `DATABASE_URL` for functional tests and code coverage |
-| `start-mysql` | `true` | Start the runner image's MySQL for functional tests and code coverage. Set it to `false` when the job runs MySQL itself, which `ubuntu-latest` requires (see [MySQL](#mysql)) |
 | `codecov-token` | `""` | Codecov upload token. Empty skips the code-coverage step entirely |
 | `stryker-dashboard-api-key` | `""` | Stryker Dashboard API key. Empty skips dashboard reporting (Infection still runs) |
 
