@@ -27,10 +27,16 @@ jobs:
                 sylius:
                     - "~2.1.0"
                     - "~2.2.0"
+                    - "~2.3.0"
 
                 dependencies:
                     - "highest"
                     - "lowest"
+
+                exclude:
+                    # Sylius 2.3 requires PHP 8.3
+                    -   php: "8.2"
+                        sylius: "~2.3.0"
 
         steps:
             -   name: "Checkout"
