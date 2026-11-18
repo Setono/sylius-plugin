@@ -51,6 +51,28 @@ runs:
             working-directory: "tests/Application"
             run: "bin/console lint:twig ../../templates"
 
+        # symfony lsp:check installs the Symfony Language Tools from their GitHub releases. The CLI asks GitHub's API
+        # for the latest release at most once a day per installation, and uses the installed copy when that fails
+        -   if: "hashFiles('.symfony-lsp.json') != ''"
+            id: "symfony-language-tools"
+            shell: "bash"
+            run: |
+                echo "cache-dir=$(symfony lsp:cache-dir)" >> "$GITHUB_OUTPUT"
+                echo "day=$(date -u +%Y-%m-%d)" >> "$GITHUB_OUTPUT"
+
+        # One cache entry per day, matching the CLI's daily update check: later runs that day restore a copy checked
+        # within 24 hours, so they make no API call at all
+        -   if: "hashFiles('.symfony-lsp.json') != ''"
+            uses: "actions/cache@v6"
+            with:
+                path: "${{ steps.symfony-language-tools.outputs.cache-dir }}"
+                key: "symfony-language-tools-${{ runner.os }}-${{ runner.arch }}-${{ steps.symfony-language-tools.outputs.day }}"
+                restore-keys: "symfony-language-tools-${{ runner.os }}-${{ runner.arch }}-"
+
+        # Unauthenticated API calls are limited to 60 an hour per IP address, which runners share, so the lookup fails
+        # with HTTP 403 now and then. The CLI authenticates with GITHUB_TOKEN when it is set
         -   if: "hashFiles('.symfony-lsp.json') != ''"
             shell: "bash"
+            env:
+                GITHUB_TOKEN: "${{ github.token }}"
             run: "symfony lsp:check --format=github"
