@@ -60,8 +60,9 @@ runs:
                 echo "cache-dir=$(symfony lsp:cache-dir)" >> "$GITHUB_OUTPUT"
                 echo "day=$(date -u +%Y-%m-%d)" >> "$GITHUB_OUTPUT"
 
-        # One cache entry per day, matching the CLI's daily update check: later runs that day restore a copy checked
-        # within 24 hours, so they make no API call at all
+        # One cache entry per day, saved by the day's first run. Most runs restore a copy checked within 24 hours, so
+        # they make no API call. The exception: when the day's first run restores a copy that is still fresh, it saves
+        # it with the previous day's check time, so runs after that check turns 24 hours old make the call again
         -   if: "hashFiles('.symfony-lsp.json') != ''"
             uses: "actions/cache@v6"
             with:
