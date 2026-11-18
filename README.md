@@ -73,6 +73,8 @@ When the plugin has a `.symfony-lsp.json` at its root, the action also runs [`sy
 
 Analyzing the root (rather than `tests/Application`) means the plugin's own `config/`, `templates/` and `translations/` are checked, and symfony-lsp finds the root `vendor/autoload.php` it boots the kernel with. The test application must boot in the `dev` environment with debug on, since symfony-lsp reads runtime metadata Symfony only exposes in debug mode. symfony-lsp caches to `var/symfony-lsp` under the analyzed root, so add `/var/` to the root `.gitignore`.
 
+`symfony lsp:check` installs the Symfony Language Tools from their GitHub releases. The action caches them with `actions/cache`, one entry per day, and runs the check with the job's `GITHUB_TOKEN`, so the CLI's lookup of the latest release is authenticated. Unauthenticated, that lookup shares the 60-requests-an-hour limit of the runner's IP address and fails now and then with "unable to resolve the latest stable Symfony Language Tools release: download returned HTTP status 403". The workflow's token only needs read access to public repositories, so the default permissions are enough.
+
 #### `dependency-analysis`
 
 | Input | Default | Description |
